@@ -91,28 +91,30 @@ object JvmManager {
   }
 
   def clearScreen(): Unit = {
-    print("\u001b[2J\u001b[H")
+    // Move cursor to top-left and clear entire screen
+    print("\u001b[H\u001b[2J")
     stdio.fflush(stdio.stdout)
   }
 
   def drawTable(processes: List[JvmProcess], selectedIndex: Int): Unit = {
     clearScreen()
 
-    println("=" * 120)
-    println("JVM Process Manager")
-    println("=" * 120)
-    println()
+    print("=" * 120 + "\r\n")
+    print("JVM Process Manager\r\n")
+    print("=" * 120 + "\r\n")
+    print("\r\n")
 
     if (processes.isEmpty) {
-      println("No JVM processes found.")
-      println()
-      println("Press 'q' to quit")
+      print("No JVM processes found.\r\n")
+      print("\r\n")
+      print("Press 'q' to quit\r\n")
+      stdio.fflush(stdio.stdout)
       return
     }
 
     // Header
-    println(f"${""}%-3s  ${"PID"}%-8s  ${"Main Class"}%-50s  ${"Working Directory"}%-50s")
-    println("-" * 120)
+    print(f"${""}%-3s  ${"PID"}%-8s  ${"Main Class"}%-50s  ${"Working Directory"}%-50s\r\n")
+    print("-" * 120 + "\r\n")
 
     // Rows
     for ((proc, idx) <- processes.zipWithIndex) {
@@ -120,12 +122,12 @@ object JvmManager {
       val mainClassTrunc = if (proc.mainClass.length > 50) proc.mainClass.take(47) + "..." else proc.mainClass
       val pwdTrunc = if (proc.pwd.length > 50) "..." + proc.pwd.takeRight(47) else proc.pwd
 
-      println(f"$marker%-3s  ${proc.pid}%-8d  $mainClassTrunc%-50s  $pwdTrunc%-50s")
+      print(f"$marker%-3s  ${proc.pid}%-8d  $mainClassTrunc%-50s  $pwdTrunc%-50s\r\n")
     }
 
-    println()
-    println("-" * 120)
-    println("Controls: ↑/k = Up | ↓/j = Down | Enter/Space = Kill selected | r = Refresh | q = Quit")
+    print("\r\n")
+    print("-" * 120 + "\r\n")
+    print("Controls: ↑/k = Up | ↓/j = Down | Enter/Space = Kill selected | r = Refresh | q = Quit\r\n")
     stdio.fflush(stdio.stdout)
   }
 
@@ -137,9 +139,8 @@ object JvmManager {
     Native.system(c"stty sane 2>/dev/null")
   }
 
-  def readKey(): Char = {
-    val ch = stdio.getchar()
-    ch.toChar
+  def readKey(): Int = {
+    stdio.getchar()
   }
 
   def main(args: Array[String]): Unit = {
@@ -158,27 +159,27 @@ object JvmManager {
         val key = readKey()
 
         key match {
-          case 'q' | 'Q' =>
+          case 113 | 81 => // 'q' | 'Q'
             running = false
 
-          case 'r' | 'R' =>
+          case 114 | 82 => // 'r' | 'R'
             processes = getJvmProcesses()
             selectedIndex = 0
             drawTable(processes, selectedIndex)
 
-          case 'k' =>
+          case 107 => // 'k'
             if (processes.nonEmpty) {
               selectedIndex = if (selectedIndex > 0) selectedIndex - 1 else processes.length - 1
               drawTable(processes, selectedIndex)
             }
 
-          case 'j' =>
+          case 106 => // 'j'
             if (processes.nonEmpty) {
               selectedIndex = if (selectedIndex < processes.length - 1) selectedIndex + 1 else 0
               drawTable(processes, selectedIndex)
             }
 
-          case '\n' | ' ' =>
+          case 10 | 32 => // '\n' | ' '
             if (processes.nonEmpty && selectedIndex < processes.length) {
               val proc = processes(selectedIndex)
               resetTerminal()
@@ -204,22 +205,23 @@ object JvmManager {
               drawTable(processes, selectedIndex)
             }
 
-          case '\u001b' => // Escape sequence start
+          case 27 => // Escape sequence start
             val next1 = readKey()
-            if (next1 == '[') {
+            if (next1 == 91) { // '['
               val next2 = readKey()
               next2 match {
-                case 'A' => // Up arrow
+                case 65 => // 'A' - Up arrow
                   if (processes.nonEmpty) {
                     selectedIndex = if (selectedIndex > 0) selectedIndex - 1 else processes.length - 1
                     drawTable(processes, selectedIndex)
                   }
-                case 'B' => // Down arrow
+                case 66 => // 'B' - Down arrow
                   if (processes.nonEmpty) {
                     selectedIndex = if (selectedIndex < processes.length - 1) selectedIndex + 1 else 0
                     drawTable(processes, selectedIndex)
                   }
                 case _ =>
+                  // Ignore other escape sequences
               }
             }
 
