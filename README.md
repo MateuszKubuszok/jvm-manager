@@ -6,8 +6,10 @@ An interactive TUI (Text User Interface) for managing JVM processes, written in 
 
 - Lists all running JVM processes with their PID, main class, and working directory
 - Interactive table navigation with keyboard controls
-- Kill processes with confirmation
-- Real-time refresh capability
+- Adapts to the terminal size (re-renders on resize); long values are wrapped, never truncated
+- Scrolls when the list does not fit the screen
+- Kill processes with confirmation; if a process ignores SIGTERM it offers to force-kill it with SIGKILL
+- Auto-refreshes every 2 seconds (selection follows the same PID)
 - Native binary (no JVM required to run)
 
 ## Requirements
@@ -36,14 +38,18 @@ scala-cli package jvm-manager.scala -o jvm-manager --native
 - **↑** or **k** - Move selection up
 - **↓** or **j** - Move selection down
 - **Enter** or **Space** - Kill selected process (with confirmation)
-- **r** - Refresh process list
-- **q** - Quit
+- **y** / any other key - Confirm / cancel a kill prompt
+- **r** - Refresh process list now
+- **q** or **Ctrl-C** - Quit
+
+Killing first sends SIGTERM and waits up to 5 seconds for the process to exit. Only when it is actually gone is
+it reported as terminated; otherwise you are asked whether to send SIGKILL.
 
 ## Implementation Details
 
 - Built with Scala Native 0.4.17 for native performance
-- Uses POSIX system calls (`popen`, `kill`) for process management
-- Terminal manipulation via ANSI escape codes
+- Uses POSIX system calls (`popen`, `kill`, `poll`, `ioctl(TIOCGWINSZ)`) for process and terminal management
+- Terminal manipulation via ANSI escape codes (alternate screen buffer)
 - Raw terminal mode for responsive keyboard input
 
 ## Example Output
